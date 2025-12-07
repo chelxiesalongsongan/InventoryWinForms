@@ -1,4 +1,4 @@
-﻿namespace Inventory
+namespace Inventory
 {
     partial class Form1
     {
