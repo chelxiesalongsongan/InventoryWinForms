@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
@@ -12,9 +12,25 @@ namespace Inventory
         public Form1()
         {
             InitializeComponent();
+
+            
+            CategoryBox.Items.AddRange(new string[] { "Electronics", "Clothing", "Food", "Books" });
+            Filter.Items.AddRange(new string[] { "All", "Electronics", "Clothing", "Food", "Books" });
+
+            Filter.SelectedIndex = 0; 
+
+            dataGridView1.SelectionChanged += dataGridView1_SelectionChanged;
+            Search.TextChanged += Search_TextChanged;
+
+            CategoryBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            Filter.DropDownStyle = ComboBoxStyle.DropDownList;
+
+
             ValidateInputs();
             RefreshInventory();
         }
+
+
 
         private void RefreshInventory(List<Product> source = null)
         {
@@ -51,7 +67,7 @@ namespace Inventory
 
             if (string.IsNullOrEmpty(sku) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(category))
             {
-                Status.Text = "Please fill all fields.";
+                Status.Text = "Please fill all fields and select a category.";
                 return;
             }
 
@@ -75,6 +91,7 @@ namespace Inventory
             Status.Text = $"Added {product.SKU} | {product.Name}";
         }
 
+
         private void UpdateBtn_Click(object sender, EventArgs e)
         {
             string sku = SKUTextBox.Text.Trim();
@@ -96,26 +113,29 @@ namespace Inventory
 
         private void RemoveBtn_Click(object sender, EventArgs e)
         {
+            if (!chkConfirmDelete.Checked)
+            {
+                Status.Text = "Enable 'Confirm before deletion' to remove items.";
+                return;
+            }
+
             if (dataGridView1.SelectedRows.Count == 0)
             {
                 Status.Text = "No item selected.";
                 return;
             }
 
-            if (chkConfirmDelete.Checked)
+            var confirm = MessageBox.Show("Remove selected product(s)?", "Confirm Deletion",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes)
             {
-                var confirm = MessageBox.Show("Remove selected product(s)?", "Confirm Deletion",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                if (confirm != DialogResult.Yes)
-                {
-                    Status.Text = "Deletion cancelled.";
-                    return;
-                }
+                Status.Text = "Deletion cancelled.";
+                return;
             }
 
             foreach (DataGridViewRow row in dataGridView1.SelectedRows)
             {
-                string sku = row.Cells["SKU"].Value.ToString();
+                string sku = row.Cells["SKUColumn"].Value.ToString();
                 var product = _catalog.FirstOrDefault(p => p.SKU == sku);
                 if (product != null) _catalog.Remove(product);
             }
@@ -124,9 +144,15 @@ namespace Inventory
             Status.Text = "Selected items removed.";
         }
 
-  
+
         private void ClearBtn_Click(object sender, EventArgs e)
         {
+            if (!chkConfirmDelete.Checked)
+            {
+                Status.Text = "Enable 'Confirm before deletion' to clear all.";
+                return;
+            }
+
             if (_catalog.Count == 0)
             {
                 Status.Text = "No items to clear.";
@@ -146,13 +172,14 @@ namespace Inventory
             Status.Text = "All items cleared.";
         }
 
+
         private void ApplyBtn_Click(object sender, EventArgs e)
         {
-            string category = Filter.SelectedItem?.ToString();
+            string category = Filter.SelectedItem?.ToString() ?? "All";
             string search = Search.Text.Trim().ToLower();
 
             var filtered = _catalog.Where(p =>
-                (category == "All" || p.Category == category) &&
+                (category == "All" || string.Equals(p.Category, category, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrEmpty(search) ||
                  p.SKU.ToLower().Contains(search) ||
                  p.Name.ToLower().Contains(search))
@@ -162,22 +189,25 @@ namespace Inventory
             Status.Text = "Filter applied.";
         }
 
-       
+
+
+
         private void ResetBtn_Click(object sender, EventArgs e)
         {
-            Filter.SelectedIndex = 0;
+            Filter.SelectedIndex = 0; 
             Search.Clear();
             RefreshInventory();
             Status.Text = "Filter reset.";
         }
 
-        
+
+
         private void dataGridView1_SelectionChanged(object sender, EventArgs e)
         {
             if (dataGridView1.SelectedRows.Count > 0)
             {
                 var row = dataGridView1.SelectedRows[0];
-                Status.Text = $"{row.Cells["SKU"].Value} | {row.Cells["Name"].Value} | {row.Cells["Category"].Value} | Qty: {row.Cells["Quantity"].Value}";
+                Status.Text = $"{row.Cells["SKUColumn"].Value} | {row.Cells["NameColumn"].Value} | {row.Cells["CategoryColumn"].Value} | Qty: {row.Cells["QuantityColumn"].Value}";
             }
         }
 
@@ -199,8 +229,9 @@ namespace Inventory
 
         private void Search_TextChanged(object sender, EventArgs e)
         {
-            
+            ApplyBtn_Click(sender, e); 
         }
+
 
     }
 }
